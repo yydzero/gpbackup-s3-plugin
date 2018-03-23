@@ -23,7 +23,11 @@ func main() {
 			Action: s3plugin.SetupPluginForRestore,
 		},
 		{
-			Name:   "cleanup_plugin",
+			Name:   "cleanup_plugin_for_backup",
+			Action: s3plugin.CleanupPlugin,
+		},
+		{
+			Name:   "cleanup_plugin_for_restore",
 			Action: s3plugin.CleanupPlugin,
 		},
 		{
@@ -41,6 +45,10 @@ func main() {
 		{
 			Name:   "restore_data",
 			Action: s3plugin.RestoreData,
+		},
+		{
+			Name:   "plugin_api_version",
+			Action: s3plugin.GetAPIVersion,
 		},
 	}
 

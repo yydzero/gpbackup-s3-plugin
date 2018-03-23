@@ -111,6 +111,10 @@ func RestoreData(c *cli.Context) error {
 	return nil
 }
 
+func GetAPIVersion(c *cli.Context) {
+	fmt.Println("0.1.0")
+}
+
 /*
  * Helper Functions
  */
