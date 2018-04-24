@@ -54,6 +54,13 @@
   packages = [
     ".",
     "config",
+    "ginkgo",
+    "ginkgo/convert",
+    "ginkgo/interrupthandler",
+    "ginkgo/nodot",
+    "ginkgo/testrunner",
+    "ginkgo/testsuite",
+    "ginkgo/watch",
     "internal/codelocation",
     "internal/containernode",
     "internal/failer",
@@ -71,7 +78,7 @@
     "reporters/stenographer/support/go-isatty",
     "types"
   ]
-  revision = "ba8e856bb854d6771a72ddf6497a42dad3a0c971"
+  revision = "6d8be987c536ebd84576a5a46208e7b7a3c796b0"
 
 [[projects]]
   name = "github.com/onsi/gomega"
@@ -139,6 +146,17 @@
   version = "v0.3.0"
 
 [[projects]]
+  branch = "master"
+  name = "golang.org/x/tools"
+  packages = [
+    "cmd/goimports",
+    "go/ast/astutil",
+    "imports",
+    "internal/fastwalk"
+  ]
+  revision = "c1def519f03ddf76f16b3e444ee1095d73afa01b"
+
+[[projects]]
   name = "gopkg.in/yaml.v2"
   packages = ["."]
   revision = "7f97868eec74b32b0982dd158a51a446d1da7eb5"
@@ -147,6 +165,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "cbd59843e5224b7d17bf049a3e959e203aebb10d743f877ae6bea5fa72bd66cd"
+  inputs-digest = "177cf63780628bf011771d5d7dd782166d87a5a789cb94180ed6e08a83995b05"
   solver-name = "gps-cdcl"
   solver-version = 1
