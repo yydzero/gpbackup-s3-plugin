@@ -2,7 +2,7 @@ all: depend build test
 
 SHELL := /bin/bash
 .DEFAULT_GOAL := all
-S3_PLUGIN=gp_s3plugin
+S3_PLUGIN=gpbackup_s3_plugin
 DIR_PATH=$(shell dirname `pwd`)
 BIN_DIR=$(shell echo $${GOPATH:-~/go} | awk -F':' '{ print $$1 "/bin"}')
 

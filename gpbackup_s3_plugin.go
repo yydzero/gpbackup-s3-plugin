@@ -1,4 +1,4 @@
-// +build gp_s3plugin
+// +build gpbackup_s3_plugin
 
 package main
 
