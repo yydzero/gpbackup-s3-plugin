@@ -24,6 +24,9 @@ func SetupPluginForBackup(c *cli.Context) error {
 	if err != nil {
 		return err
 	}
+	if err = validateConfig(config); err != nil {
+		return err
+	}
 	backupDir := c.Args().Get(1)
 	_, timestamp := filepath.Split(backupDir)
 	testFilePath := fmt.Sprintf("%s/gpbackup_%s_report", backupDir, timestamp)
@@ -36,6 +39,13 @@ func SetupPluginForBackup(c *cli.Context) error {
 }
 
 func SetupPluginForRestore(c *cli.Context) error {
+	config, err := readPluginConfig(c.Args().Get(0))
+	if err != nil {
+		return err
+	}
+	if err = validateConfig(config); err != nil {
+		return err
+	}
 	backupDir := c.Args().Get(1)
 	if err := os.MkdirAll(backupDir, 0755); err != nil {
 		return err
@@ -133,6 +143,16 @@ func readPluginConfig(configFile string) (*PluginConfig, error) {
 		return nil, err
 	}
 	return config, nil
+}
+
+func validateConfig(config *PluginConfig) error {
+	required_keys := []string{"aws_access_key_id", "aws_secret_access_key", "region", "bucket", "backupdir"}
+	for _, key := range required_keys {
+		if config.Options[key] == "" {
+			return fmt.Errorf("%s must exist in plugin configuration file", key)
+		}
+	}
+	return nil
 }
 
 func readConfigAndStartSession(c *cli.Context) (*PluginConfig, *session.Session, error) {
