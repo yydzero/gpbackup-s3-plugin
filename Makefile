@@ -35,12 +35,27 @@ depend : dependencies
 
 build :
 		go build -tags '$(S3_PLUGIN)' $(GOFLAGS) -o $(BIN_DIR)/$(S3_PLUGIN)
+		@$(MAKE) install_plugin
 
 build_linux :
 		env GOOS=linux GOARCH=amd64 go build -tags '$(S3_PLUGIN)' $(GOFLAGS) -o $(BIN_DIR)/$(S3_PLUGIN)
 
 build_mac :
 		env GOOS=darwin GOARCH=amd64 go build -tags '$(S3_PLUGIN)' $(GOFLAGS) -o $(BIN_DIR)/$(S3_PLUGIN)
+
+install_plugin :
+		@psql -t -d template1 -c 'select distinct hostname from gp_segment_configuration' > /tmp/seg_hosts 2>/dev/null; \
+		if [ $$? -eq 0 ]; then \
+			gpscp -f /tmp/seg_hosts $(BIN_DIR)/$(S3_PLUGIN) =:$(GPHOME)/bin/$(S3_PLUGIN); \
+			if [ $$? -eq 0 ]; then \
+				echo 'Successfully copied gpbackup_s3_plugin to $(GPHOME) on all segments'; \
+			else \
+				echo 'Failed to copy gpbackup_s3_plugin to $(GPHOME)'; \
+			fi; \
+		else \
+			echo 'Database is not running, please start the database and run this make target again'; \
+		fi; \
+		rm /tmp/seg_hosts
 
 clean :
 		# Build artifacts
