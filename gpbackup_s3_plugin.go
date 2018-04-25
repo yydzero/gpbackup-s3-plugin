@@ -12,6 +12,12 @@ import (
 
 func main() {
 	app := cli.NewApp()
+	cli.VersionFlag = cli.BoolFlag{
+		Name:  "version",
+		Usage: "print version of gpbackup_s3_plugin",
+	}
+	app.Version = s3plugin.Version
+	app.Usage = "S3 plugin for gpbackup and gprestore"
 
 	app.Commands = []cli.Command{
 		{

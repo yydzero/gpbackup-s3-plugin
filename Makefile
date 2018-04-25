@@ -6,6 +6,9 @@ S3_PLUGIN=gpbackup_s3_plugin
 DIR_PATH=$(shell dirname `pwd`)
 BIN_DIR=$(shell echo $${GOPATH:-~/go} | awk -F':' '{ print $$1 "/bin"}')
 
+GIT_VERSION := $(shell git describe --tags | perl -pe 's/(.*)-([0-9]*)-(g[0-9a-f]*)/\1+dev.\2.\3/')
+PLUGIN_VERSION_STR="-X github.com/greenplum-db/gpbackup-s3-plugin/s3plugin.Version=$(GIT_VERSION)"
+
 DEST = .
 
 GOFLAGS :=
@@ -34,7 +37,7 @@ test : lint unit
 depend : dependencies
 
 build :
-		go build -tags '$(S3_PLUGIN)' $(GOFLAGS) -o $(BIN_DIR)/$(S3_PLUGIN)
+		go build -tags '$(S3_PLUGIN)' $(GOFLAGS) -o $(BIN_DIR)/$(S3_PLUGIN) -ldflags $(PLUGIN_VERSION_STR)
 		@$(MAKE) install_plugin
 
 build_linux :

@@ -19,6 +19,8 @@ import (
 	yaml "gopkg.in/yaml.v2"
 )
 
+var Version string
+
 func SetupPluginForBackup(c *cli.Context) error {
 	config, session, err := readConfigAndStartSession(c)
 	if err != nil {
