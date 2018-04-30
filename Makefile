@@ -41,10 +41,10 @@ build :
 		@$(MAKE) install_plugin
 
 build_linux :
-		env GOOS=linux GOARCH=amd64 go build -tags '$(S3_PLUGIN)' $(GOFLAGS) -o $(BIN_DIR)/$(S3_PLUGIN)
+		env GOOS=linux GOARCH=amd64 go build -tags '$(S3_PLUGIN)' $(GOFLAGS) -o $(BIN_DIR)/$(S3_PLUGIN) -ldflags $(PLUGIN_VERSION_STR)
 
 build_mac :
-		env GOOS=darwin GOARCH=amd64 go build -tags '$(S3_PLUGIN)' $(GOFLAGS) -o $(BIN_DIR)/$(S3_PLUGIN)
+		env GOOS=darwin GOARCH=amd64 go build -tags '$(S3_PLUGIN)' $(GOFLAGS) -o $(BIN_DIR)/$(S3_PLUGIN) -ldflags $(PLUGIN_VERSION_STR)
 
 install_plugin :
 		@psql -t -d template1 -c 'select distinct hostname from gp_segment_configuration' > /tmp/seg_hosts 2>/dev/null; \
