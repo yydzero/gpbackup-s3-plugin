@@ -48,10 +48,6 @@ func SetupPluginForRestore(c *cli.Context) error {
 	if err = validateConfig(config); err != nil {
 		return err
 	}
-	backupDir := c.Args().Get(1)
-	if err := os.MkdirAll(backupDir, 0755); err != nil {
-		return err
-	}
 	return nil
 }
 
