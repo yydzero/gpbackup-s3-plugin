@@ -69,9 +69,6 @@ func BackupFile(c *cli.Context) error {
 	if err = uploadFile(session, config.Options["bucket"], fileKey, reader); err != nil {
 		return err
 	}
-	if err = os.Remove(filename); err != nil {
-		return err
-	}
 	return nil
 }
 
