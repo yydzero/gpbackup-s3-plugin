@@ -17,7 +17,7 @@ options:
   aws_access_key_id: <aws-user-id>
   aws_secret_access_key: <aws-user-id-key>
   bucket: <s3-bucket>
-  backupdir: <s3-location>
+  folder: <s3-location>
  ```
 
 **executablepath:**
@@ -44,7 +44,7 @@ AWS S3 passcode for the S3 ID to access the S3 bucket location.
 
 The name of the S3 bucket in the AWS region. The bucket must exist.
 
-**backupdir:**
+**folder:**
 
 The S3 location for backups. During a backup operation, the plugin creates the S3 location if it does not exist in the S3 bucket.
 
@@ -58,7 +58,7 @@ options:
   aws_access_key_id: test-s3-user
   aws_secret_access_key: asdf1234asdf
   bucket: gpdb-backup
-  backupdir: test/backup3
+  folder: test/backup3
 ```
 
 This gpbackup example backs up the database demo using the S3 storage plugin. The absolute path to the S3 storage plugin configuration file is /home/gpadmin/s3-test.

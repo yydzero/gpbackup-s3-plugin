@@ -29,10 +29,10 @@ func SetupPluginForBackup(c *cli.Context) error {
 	if err = validateConfig(config); err != nil {
 		return err
 	}
-	backupDir := c.Args().Get(1)
-	_, timestamp := filepath.Split(backupDir)
-	testFilePath := fmt.Sprintf("%s/gpbackup_%s_report", backupDir, timestamp)
-	fileKey := GetS3Path(config.Options["backupdir"], testFilePath)
+	localBackupDir := c.Args().Get(1)
+	_, timestamp := filepath.Split(localBackupDir)
+	testFilePath := fmt.Sprintf("%s/gpbackup_%s_report", localBackupDir, timestamp)
+	fileKey := GetS3Path(config.Options["folder"], testFilePath)
 	reader := strings.NewReader("")
 	if err = uploadFile(session, config.Options["bucket"], fileKey, reader); err != nil {
 		return err
@@ -61,7 +61,7 @@ func BackupFile(c *cli.Context) error {
 		return err
 	}
 	filename := c.Args().Get(1)
-	fileKey := GetS3Path(config.Options["backupdir"], filename)
+	fileKey := GetS3Path(config.Options["folder"], filename)
 	reader, err := os.Open(filename)
 	if err != nil {
 		return err
@@ -78,7 +78,7 @@ func RestoreFile(c *cli.Context) error {
 		return err
 	}
 	filename := c.Args().Get(1)
-	fileKey := GetS3Path(config.Options["backupdir"], filename)
+	fileKey := GetS3Path(config.Options["folder"], filename)
 	writer, err := os.Create(filename)
 	if err != nil {
 		return err
@@ -95,7 +95,7 @@ func BackupData(c *cli.Context) error {
 		return err
 	}
 	dataFile := c.Args().Get(1)
-	fileKey := GetS3Path(config.Options["backupdir"], dataFile)
+	fileKey := GetS3Path(config.Options["folder"], dataFile)
 	reader := bufio.NewReader(os.Stdin)
 	if err = uploadFile(session, config.Options["bucket"], fileKey, reader); err != nil {
 		return err
@@ -109,7 +109,7 @@ func RestoreData(c *cli.Context) error {
 		return err
 	}
 	dataFile := c.Args().Get(1)
-	fileKey := GetS3Path(config.Options["backupdir"], dataFile)
+	fileKey := GetS3Path(config.Options["folder"], dataFile)
 	if err = downloadFile(session, config.Options["bucket"], fileKey, os.Stdout); err != nil {
 		return err
 	}
@@ -141,7 +141,7 @@ func readPluginConfig(configFile string) (*PluginConfig, error) {
 }
 
 func validateConfig(config *PluginConfig) error {
-	required_keys := []string{"aws_access_key_id", "aws_secret_access_key", "region", "bucket", "backupdir"}
+	required_keys := []string{"aws_access_key_id", "aws_secret_access_key", "region", "bucket", "folder"}
 	for _, key := range required_keys {
 		if config.Options[key] == "" {
 			return fmt.Errorf("%s must exist in plugin configuration file", key)
@@ -192,7 +192,7 @@ func downloadFile(session *session.Session, bucket string, fileKey string, fileW
 	return err
 }
 
-func GetS3Path(backupDir string, path string) string {
+func GetS3Path(folder string, path string) string {
 	pathArray := strings.Split(path, "/")
-	return fmt.Sprintf("%s/%s", backupDir, strings.Join(pathArray[(len(pathArray)-4):], "/"))
+	return fmt.Sprintf("%s/%s", folder, strings.Join(pathArray[(len(pathArray)-4):], "/"))
 }
