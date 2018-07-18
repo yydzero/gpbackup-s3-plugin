@@ -49,3 +49,4 @@ required = ["golang.org/x/tools/cmd/goimports", "github.com/onsi/ginkgo/ginkgo"]
 [prune]
   go-tests = true
   unused-packages = true
+  non-go = true

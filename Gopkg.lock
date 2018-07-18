@@ -52,7 +52,6 @@
   revision = "0b12d6b5"
 
 [[projects]]
-  branch = "master"
   name = "github.com/onsi/ginkgo"
   packages = [
     ".",
@@ -81,7 +80,8 @@
     "reporters/stenographer/support/go-isatty",
     "types"
   ]
-  revision = "000d317071340972710dc1da9ae3c2c016a7a560"
+  revision = "fa5fabab2a1bfbd924faf4c067d07ae414e2aedf"
+  version = "v1.5.0"
 
 [[projects]]
   name = "github.com/onsi/gomega"
@@ -168,6 +168,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "177cf63780628bf011771d5d7dd782166d87a5a789cb94180ed6e08a83995b05"
+  inputs-digest = "4be9e97c485fb5cb68fd3d75922d4f598832e0fe5c4ca984a0bdb55a216767b6"
   solver-name = "gps-cdcl"
   solver-version = 1
