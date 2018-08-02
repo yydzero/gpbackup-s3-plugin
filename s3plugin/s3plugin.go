@@ -7,10 +7,10 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 
-	"path/filepath"
-
+	"github.com/alecthomas/units"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -209,17 +209,48 @@ func uploadFile(sess *session.Session, bucket string, fileKey string, fileReader
 }
 
 func downloadFile(sess *session.Session, bucket string, fileKey string, fileWriter io.Writer) error {
-	buff := &aws.WriteAtBuffer{}
 	downloader := s3manager.NewDownloader(sess)
-	_, err := downloader.Download(buff, &s3.GetObjectInput{
-		Bucket: aws.String(bucket),
-		Key:    aws.String(fileKey),
-	})
+
+	totalBytes, err := getFileSize(downloader, bucket, fileKey)
 	if err != nil {
 		return err
 	}
-	_, err = io.Copy(fileWriter, bytes.NewReader(buff.Bytes()))
+
+	buff := &aws.WriteAtBuffer{GrowthCoeff: 2}
+
+	const PartSize = int64(units.Gigabyte)
+	startByte := int64(0)
+	endByte := int64(PartSize - 1)
+	for startByte < totalBytes {
+		if endByte >= totalBytes {
+			endByte = totalBytes - 1
+		}
+		_, err := downloader.Download(buff, &s3.GetObjectInput{
+			Bucket: aws.String(bucket),
+			Key:    aws.String(fileKey),
+			Range:  aws.String(fmt.Sprintf("bytes=%d-%d", startByte, endByte)),
+		})
+		if err != nil {
+			return err
+		}
+		_, err = io.Copy(fileWriter, bytes.NewReader(buff.Bytes()))
+		startByte += PartSize
+		endByte += PartSize
+	}
 	return err
+}
+
+func getFileSize(downloader *s3manager.Downloader, bucket string, fileKey string) (int64, error) {
+	req, resp := downloader.S3.HeadObjectRequest(&s3.HeadObjectInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(fileKey),
+	})
+	err := req.Send()
+
+	if err != nil {
+		return 0, err
+	}
+	return *resp.ContentLength, nil
 }
 
 func GetS3Path(folder string, path string) string {
