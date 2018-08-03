@@ -2,13 +2,16 @@ package s3plugin
 
 import (
 	"bufio"
-	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"bytes"
+	"math"
+	"sync"
 
 	"github.com/alecthomas/units"
 	"github.com/aws/aws-sdk-go/aws"
@@ -31,6 +34,8 @@ const (
 	SegmentHost Scope = "segment_host"
 	Segment     Scope = "segment"
 )
+
+const DownloadChunkSize = int64(units.Mebibyte) * 100
 
 func SetupPluginForBackup(c *cli.Context) error {
 	args := c.Args()
@@ -208,36 +213,64 @@ func uploadFile(sess *session.Session, bucket string, fileKey string, fileReader
 	return err
 }
 
+/*
+ * Performs ranged requests for the file while exploiting parallelism between the copy and download tasks
+ */
 func downloadFile(sess *session.Session, bucket string, fileKey string, fileWriter io.Writer) error {
+	var finalErr error
 	downloader := s3manager.NewDownloader(sess)
 
 	totalBytes, err := getFileSize(downloader, bucket, fileKey)
 	if err != nil {
 		return err
 	}
+	noOfChunks := int(math.Ceil(float64(totalBytes) / float64(DownloadChunkSize)))
+	downloadBuffers := make([]*aws.WriteAtBuffer, noOfChunks)
+	for i := 0; i < noOfChunks; i++ {
+		downloadBuffers[i] = &aws.WriteAtBuffer{GrowthCoeff: 2}
+	}
+	copyChannel := make(chan int)
 
-	buff := &aws.WriteAtBuffer{GrowthCoeff: 2}
+	waitGroup := sync.WaitGroup{}
 
-	const PartSize = int64(units.Gigabyte)
-	startByte := int64(0)
-	endByte := int64(PartSize - 1)
-	for startByte < totalBytes {
-		if endByte >= totalBytes {
-			endByte = totalBytes - 1
+	go func() {
+		for currChunk := range copyChannel {
+			_, err := io.Copy(fileWriter, bytes.NewReader(downloadBuffers[currChunk].Bytes()))
+			if err != nil {
+				finalErr = err
+			}
+			waitGroup.Done()
 		}
-		_, err := downloader.Download(buff, &s3.GetObjectInput{
+	}()
+
+	startByte := int64(0)
+	endByte := int64(DownloadChunkSize - 1)
+	for currentChunkNo := 0; currentChunkNo < noOfChunks; currentChunkNo++ {
+		if endByte > totalBytes {
+			endByte = totalBytes
+		}
+		_, err := downloader.Download(downloadBuffers[currentChunkNo], &s3.GetObjectInput{
 			Bucket: aws.String(bucket),
 			Key:    aws.String(fileKey),
 			Range:  aws.String(fmt.Sprintf("bytes=%d-%d", startByte, endByte)),
 		})
 		if err != nil {
-			return err
+			finalErr = err
+			break
 		}
-		_, err = io.Copy(fileWriter, bytes.NewReader(buff.Bytes()))
-		startByte += PartSize
-		endByte += PartSize
+
+		waitGroup.Add(1)
+
+		copyChannel <- currentChunkNo
+
+		startByte += DownloadChunkSize
+		endByte += DownloadChunkSize
 	}
-	return err
+	close(copyChannel)
+
+	waitGroup.Wait()
+
+	return finalErr
 }
 
 func getFileSize(downloader *s3manager.Downloader, bucket string, fileKey string) (int64, error) {
