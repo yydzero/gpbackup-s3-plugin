@@ -204,7 +204,10 @@ func ShouldEnableEncryption(config *PluginConfig) bool {
 }
 
 func uploadFile(sess *session.Session, bucket string, fileKey string, fileReader io.Reader) error {
-	uploader := s3manager.NewUploader(sess)
+	uploader := s3manager.NewUploader(sess, func(u *s3manager.Uploader) {
+		// 500 MB per part, supporting a file size up to 5TB
+		u.PartSize = 500 * 1024 * 1024
+	})
 	_, err := uploader.Upload(&s3manager.UploadInput{
 		Bucket: aws.String(bucket),
 		Key:    aws.String(fileKey),
