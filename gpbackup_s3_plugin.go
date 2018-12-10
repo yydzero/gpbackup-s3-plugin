@@ -19,7 +19,7 @@ func main() {
 	}
 	app.Version = s3plugin.Version
 	app.Usage = ""
-	app.UsageText = "Not supported as a standalone utility.  This plugin must be used in conjuction with gpbackup and gprestore."
+	app.UsageText = "Not supported as a standalone utility.  This plugin must be used in conjunction with gpbackup and gprestore."
 
 	app.Commands = []cli.Command{
 		{
