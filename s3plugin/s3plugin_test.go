@@ -83,7 +83,8 @@ var _ = Describe("s3_plugin tests", func() {
 		})
 		It("sets region to unused when endpoint is used instead of region", func() {
 			delete(pluginConfig.Options, "region")
-			s3plugin.ValidateConfig(pluginConfig)
+			err := s3plugin.ValidateConfig(pluginConfig)
+			Expect(err).ToNot(HaveOccurred())
 			Expect(pluginConfig.Options["region"]).To(Equal("unused"))
 		})
 		It("returns error when neither region nor endpoint in config", func() {
