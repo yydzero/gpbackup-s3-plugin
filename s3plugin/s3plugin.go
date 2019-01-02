@@ -301,5 +301,6 @@ func getFileSize(downloader *s3manager.Downloader, bucket string, fileKey string
 
 func GetS3Path(folder string, path string) string {
 	pathArray := strings.Split(path, "/")
-	return fmt.Sprintf("%s/%s", folder, strings.Join(pathArray[(len(pathArray)-4):], "/"))
+	lastThree := strings.Join(pathArray[(len(pathArray)-4):], "/")
+	return fmt.Sprintf("%s/%s", folder, lastThree)
 }

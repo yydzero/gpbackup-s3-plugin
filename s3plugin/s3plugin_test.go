@@ -29,11 +29,11 @@ var _ = Describe("s3_plugin tests", func() {
 		}
 	})
 	Describe("GetS3Path", func() {
-		It("", func() {
+		It("it combines the folder directory with a path that results from removing all but the last 3 directories of the file path parameter", func() {
 			folder := "s3/Dir"
-			path := "/tmp/datadir/gpseg-1/backups/20180101/2018010101010101/backup_file"
+			path := "/a/b/c/tmp/datadir/gpseg-1/backups/20180101/20180101082233/backup_file"
 			newPath := s3plugin.GetS3Path(folder, path)
-			expectedPath := "s3/Dir/backups/20180101/2018010101010101/backup_file"
+			expectedPath := "s3/Dir/backups/20180101/20180101082233/backup_file"
 			Expect(newPath).To(Equal(expectedPath))
 		})
 	})
