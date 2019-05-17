@@ -38,30 +38,31 @@ const (
 const DownloadChunkSize = int64(units.Mebibyte) * 100
 
 func SetupPluginForBackup(c *cli.Context) error {
-	args := c.Args()
-	if scope := (Scope)(args.Get(2)); scope == Master || scope == SegmentHost {
-		config, sess, err := readConfigAndStartSession(c)
-		if err != nil {
-			return err
-		}
+	scope := (Scope)(c.Args().Get(2))
+	if scope != Master && scope != SegmentHost {
+		return nil
+	}
+
+	config, sess, err := readConfigAndStartSession(c)
+	if err == nil {
 		localBackupDir := c.Args().Get(1)
 		_, timestamp := filepath.Split(localBackupDir)
 		testFilePath := fmt.Sprintf("%s/gpbackup_%s_report", localBackupDir, timestamp)
 		fileKey := GetS3Path(config.Options["folder"], testFilePath)
-		reader := strings.NewReader("")
-		if err = uploadFile(sess, config.Options["bucket"], fileKey, reader); err != nil {
-			return err
-		}
+		reader := strings.NewReader("") // dummy empty reader for probe
+		err = uploadFile(sess, config.Options["bucket"], fileKey, reader)
 	}
-	return nil
+
+	return err
 }
 
 func SetupPluginForRestore(c *cli.Context) error {
-	if scope := (Scope)(c.Args().Get(2)); scope == Master || scope == SegmentHost {
-		_, err := readAndValidatePluginConfig(c.Args().Get(0))
-		return err
+	scope := (Scope)(c.Args().Get(2))
+	if scope != Master && scope != SegmentHost {
+		return nil
 	}
-	return nil
+	_, err := readAndValidatePluginConfig(c.Args().Get(0))
+	return err
 }
 
 func CleanupPlugin(c *cli.Context) error {
@@ -70,63 +71,52 @@ func CleanupPlugin(c *cli.Context) error {
 
 func BackupFile(c *cli.Context) error {
 	config, sess, err := readConfigAndStartSession(c)
-	if err != nil {
-		return err
+	if err == nil {
+		filename := c.Args().Get(1)
+		fileKey := GetS3Path(config.Options["folder"], filename)
+		reader, err := os.Open(filename)
+		defer func() {
+			_ = reader.Close()
+		}()
+		if err == nil {
+			err = uploadFile(sess, config.Options["bucket"], fileKey, reader)
+		}
 	}
-	filename := c.Args().Get(1)
-	fileKey := GetS3Path(config.Options["folder"], filename)
-	reader, err := os.Open(filename)
-	if err != nil {
-		return err
-	}
-	if err = uploadFile(sess, config.Options["bucket"], fileKey, reader); err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func RestoreFile(c *cli.Context) error {
 	config, sess, err := readConfigAndStartSession(c)
-	if err != nil {
-		return err
+	if err == nil {
+		filename := c.Args().Get(1)
+		fileKey := GetS3Path(config.Options["folder"], filename)
+		writer, err := os.Create(filename)
+		if err == nil {
+			err = downloadFile(sess, config.Options["bucket"], fileKey, writer)
+		}
 	}
-	filename := c.Args().Get(1)
-	fileKey := GetS3Path(config.Options["folder"], filename)
-	writer, err := os.Create(filename)
-	if err != nil {
-		return err
-	}
-	if err = downloadFile(sess, config.Options["bucket"], fileKey, writer); err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func BackupData(c *cli.Context) error {
 	config, sess, err := readConfigAndStartSession(c)
-	if err != nil {
-		return err
+	if err == nil {
+		dataFile := c.Args().Get(1)
+		fileKey := GetS3Path(config.Options["folder"], dataFile)
+		reader := bufio.NewReader(os.Stdin)
+		err = uploadFile(sess, config.Options["bucket"], fileKey, reader)
 	}
-	dataFile := c.Args().Get(1)
-	fileKey := GetS3Path(config.Options["folder"], dataFile)
-	reader := bufio.NewReader(os.Stdin)
-	if err = uploadFile(sess, config.Options["bucket"], fileKey, reader); err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func RestoreData(c *cli.Context) error {
 	config, sess, err := readConfigAndStartSession(c)
-	if err != nil {
-		return err
+	if err == nil {
+		dataFile := c.Args().Get(1)
+		fileKey := GetS3Path(config.Options["folder"], dataFile)
+		err = downloadFile(sess, config.Options["bucket"], fileKey, os.Stdout)
 	}
-	dataFile := c.Args().Get(1)
-	fileKey := GetS3Path(config.Options["folder"], dataFile)
-	if err = downloadFile(sess, config.Options["bucket"], fileKey, os.Stdout); err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func GetAPIVersion(c *cli.Context) {
@@ -207,10 +197,8 @@ func readConfigAndStartSession(c *cli.Context) (*PluginConfig, *session.Session,
 }
 
 func ShouldEnableEncryption(config *PluginConfig) bool {
-	if strings.EqualFold(config.Options["encryption"], "off") {
-		return false
-	}
-	return true
+	isOff := strings.EqualFold(config.Options["encryption"], "off")
+	return !isOff
 }
 
 func uploadFile(sess *session.Session, bucket string, fileKey string, fileReader io.Reader) error {
