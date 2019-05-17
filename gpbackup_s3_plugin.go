@@ -4,7 +4,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/greenplum-db/gpbackup-s3-plugin/s3plugin"
@@ -67,12 +66,26 @@ func main() {
 			Action: s3plugin.GetAPIVersion,
 			Before: buildBeforeFunc(0),
 		},
+		{
+			Name:   "delete_backup",
+			Action: doDelete,
+			Before: buildBeforeFunc(2),
+		},
 	}
 
 	err := app.Run(os.Args)
 	if err != nil {
-		log.Fatal(err)
+		fmt.Fprintln(os.Stderr, err.Error())
+		os.Exit(1)
 	}
+}
+
+func doDelete(c *cli.Context) error {
+	plugin, err := s3plugin.NewS3PluginProduction(c)
+	if err != nil {
+		return err
+	}
+	return plugin.Delete(c)
 }
 
 func buildBeforeFunc(expectedNArgs ...int) (beforeFunc cli.BeforeFunc) {

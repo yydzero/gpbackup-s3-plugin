@@ -2,11 +2,13 @@ package s3plugin
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"bytes"
@@ -25,7 +27,7 @@ import (
 
 var Version string
 
-const API_VERSION = "0.3.0"
+const API_VERSION = "0.4.0"
 
 type Scope string
 
@@ -36,6 +38,43 @@ const (
 )
 
 const DownloadChunkSize = int64(units.Mebibyte) * 100
+
+type PluginConfig struct {
+	ExecutablePath string
+	Options        map[string]string
+}
+
+type S3Manager interface {
+	Delete(bucket, dirPath string) error
+}
+
+type S3Plugin struct {
+	manager S3Manager
+	config  *PluginConfig
+}
+
+func NewS3Plugin(manager S3Manager, config *PluginConfig) *S3Plugin {
+	return &S3Plugin{
+		manager: manager,
+		config:  config,
+	}
+}
+
+func NewS3PluginProduction(c *cli.Context) (*S3Plugin, error) {
+	config, sess, err := readConfigAndStartSession(c)
+	if err != nil {
+		return nil, err
+	}
+
+	prodPlugin := NewS3Plugin(
+		&ProductionS3Manager{
+			service: s3.New(sess),
+			config:  config,
+		},
+		config)
+
+	return prodPlugin, nil
+}
 
 func SetupPluginForBackup(c *cli.Context) error {
 	scope := (Scope)(c.Args().Get(2))
@@ -90,9 +129,15 @@ func RestoreFile(c *cli.Context) error {
 	if err == nil {
 		filename := c.Args().Get(1)
 		fileKey := GetS3Path(config.Options["folder"], filename)
-		writer, err := os.Create(filename)
+		var writer *os.File
+		writer, err = os.Create(filename)
 		if err == nil {
 			err = downloadFile(sess, config.Options["bucket"], fileKey, writer)
+			if err != nil {
+				_ = os.Remove(filename)
+			} else {
+				err = writer.Close()
+			}
 		}
 	}
 	return err
@@ -126,10 +171,6 @@ func GetAPIVersion(c *cli.Context) {
 /*
  * Helper Functions
  */
-type PluginConfig struct {
-	ExecutablePath string
-	Options        map[string]string
-}
 
 func readAndValidatePluginConfig(configFile string) (*PluginConfig, error) {
 	config := &PluginConfig{}
@@ -288,7 +329,56 @@ func getFileSize(downloader *s3manager.Downloader, bucket string, fileKey string
 }
 
 func GetS3Path(folder string, path string) string {
+	/*
+		a typical path for an already-backed-up file will be stored in a
+		parent directory of a segment, and beneath that, under a datestamp/timestamp/ hierarchy. We assume the incoming path is a long absolute one.
+		For example from the test bench:
+		  testdir_for_del="/tmp/testseg/backups/$current_date_for_del/$time_second_for_del"
+		  testfile_for_del="$testdir_for_del/testfile_$time_second_for_del.txt"
+
+		Therefore, the incoming path is relevant to S3 in only the last four segments,
+		which indicate the file and its 2 date/timestamp parents, and the grandparent "backups"
+	*/
 	pathArray := strings.Split(path, "/")
-	lastThree := strings.Join(pathArray[(len(pathArray)-4):], "/")
-	return fmt.Sprintf("%s/%s", folder, lastThree)
+	lastFour := strings.Join(pathArray[(len(pathArray)-4):], "/")
+	return fmt.Sprintf("%s/%s", folder, lastFour)
+}
+
+func (plugin S3Plugin) Delete(c *cli.Context) error {
+	timestamp := c.Args().Get(1)
+	if timestamp == "" {
+		return errors.New("delete requires a <timestamp>")
+	}
+
+	if !IsValidTimestamp(timestamp) {
+		return fmt.Errorf("delete requires a <timestamp> with format YYYYMMDDHHMMSS, but received: %s", timestamp)
+	}
+
+	date := timestamp[0:8]
+	// note that "backups" is a directory is a fact of how we save, choosing
+	// to use the 3 parent directories of the source file. That becomes:
+	// <s3folder>/backups/<date>/<timestamp>
+	deletePath := filepath.Join(plugin.config.Options["folder"], "backups", date, timestamp)
+	bucket := plugin.config.Options["bucket"]
+
+	return plugin.manager.Delete(bucket, deletePath)
+}
+
+func IsValidTimestamp(timestamp string) bool {
+	timestampFormat := regexp.MustCompile(`^([0-9]{14})$`)
+	return timestampFormat.MatchString(timestamp)
+}
+
+type ProductionS3Manager struct {
+	service *s3.S3
+	config  *PluginConfig
+}
+
+func (d ProductionS3Manager) Delete(bucket, dirPath string) error {
+	iter := s3manager.NewDeleteListIterator(d.service, &s3.ListObjectsInput{
+		Bucket: aws.String(bucket),
+		Prefix: aws.String(dirPath),
+	})
+	batcher := s3manager.NewBatchDeleteWithClient(d.service)
+	return batcher.Delete(aws.BackgroundContext(), iter)
 }
