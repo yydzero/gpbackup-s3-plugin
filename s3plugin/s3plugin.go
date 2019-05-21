@@ -113,7 +113,8 @@ func BackupFile(c *cli.Context) error {
 	if err == nil {
 		filename := c.Args().Get(1)
 		fileKey := GetS3Path(config.Options["folder"], filename)
-		reader, err := os.Open(filename)
+		var reader *os.File
+		reader, err = os.Open(filename)
 		defer func() {
 			_ = reader.Close()
 		}()
@@ -178,10 +179,10 @@ func readAndValidatePluginConfig(configFile string) (*PluginConfig, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := yaml.Unmarshal(contents, config); err != nil {
+	if err = yaml.Unmarshal(contents, config); err != nil {
 		return nil, err
 	}
-	if err := ValidateConfig(config); err != nil {
+	if err = ValidateConfig(config); err != nil {
 		return nil, err
 	}
 	return config, nil
@@ -229,7 +230,8 @@ func readConfigAndStartSession(c *cli.Context) (*PluginConfig, *session.Session,
 			config.Options["aws_secret_access_key"], ""))
 	}
 
-	sess, err := session.NewSession(awsConfig)
+	var sess *session.Session
+	sess, err = session.NewSession(awsConfig)
 
 	if err != nil {
 		return nil, nil, err
@@ -277,7 +279,7 @@ func downloadFile(sess *session.Session, bucket string, fileKey string, fileWrit
 
 	go func() {
 		for currChunk := range copyChannel {
-			_, err := io.Copy(fileWriter, bytes.NewReader(downloadBuffers[currChunk].Bytes()))
+			_, err = io.Copy(fileWriter, bytes.NewReader(downloadBuffers[currChunk].Bytes()))
 			if err != nil {
 				finalErr = err
 			}
