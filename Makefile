@@ -41,7 +41,7 @@ build :
 		@$(MAKE) install_plugin
 
 build_linux :
-		env GOOS=linux GOARCH=amd64 go build -tags '$(S3_PLUGIN)' $(GOFLAGS) -o $(BIN_DIR)/$(S3_PLUGIN) -ldflags $(PLUGIN_VERSION_STR)
+		env GOOS=linux GOARCH=amd64 go build -tags '$(S3_PLUGIN)' $(GOFLAGS) -o $(S3_PLUGIN) -ldflags $(PLUGIN_VERSION_STR)
 
 build_mac :
 		env GOOS=darwin GOARCH=amd64 go build -tags '$(S3_PLUGIN)' $(GOFLAGS) -o $(BIN_DIR)/$(S3_PLUGIN) -ldflags $(PLUGIN_VERSION_STR)
