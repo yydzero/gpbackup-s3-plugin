@@ -13,39 +13,34 @@ BIN_DIR=$(shell echo $${GOPATH:-~/go} | awk -F':' '{ print $$1 "/bin"}')
 GIT_VERSION := $(shell git describe --tags | perl -pe 's/(.*)-([0-9]*)-(g[0-9a-f]*)/\1+dev.\2.\3/')
 PLUGIN_VERSION_STR="-X github.com/greenplum-db/gpbackup-s3-plugin/s3plugin.Version=$(GIT_VERSION)"
 DEP=$(GOPATH)/bin/dep
+GOLANG_LINTER=$(GOPATH)/bin/golangci-lint
 
 LINTER_VERSION=1.16.0
-$(GOLANG_LINTER) :
-		mkdir -p $(GOPATH)/bin
+$(GOLANG_LINTER) : $(DEP)
 		curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOPATH)/bin v${LINTER_VERSION}
 
-depend : $(LINTER) $(GOIMPORTS) $(GINKGO)
-
 $(DEP) :
-	mkdir -p $(GOPATH)/bin
-	curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+		mkdir -p $(GOPATH)/bin
+		curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
 
-$(GINKGO):
-	@cd vendor/github.com/onsi/ginkgo/ginkgo; go install .
-
-$(GOIMPORTS):
-	@cd vendor/golang.org/x/tools/cmd/goimports; go install .
+depend : $(DEP)
+		dep ensure -v
+		cd vendor/github.com/onsi/ginkgo/ginkgo; go install .
+		cd vendor/golang.org/x/tools/cmd/goimports; go install .
 
 format :
 		goimports -w .
 		gofmt -w -s .
 
-lint :
-		! gofmt -l s3plugin/ | read
-		gometalinter --config=gometalinter.config -s vendor ./...
+lint : $(GOLANG_LINTER)
+		golangci-lint run --tests=false
 
-unit :
+unit : depend
 		ginkgo -r -randomizeSuites -noisySkippings=false -randomizeAllSpecs s3plugin 2>&1
 
-test : lint unit
+test : unit
 
 build : depend
-		dep ensure -v
 		go build -tags '$(S3_PLUGIN)' -o $(BIN_DIR)/$(S3_PLUGIN) -ldflags $(PLUGIN_VERSION_STR)
 		@$(MAKE) install_plugin
 
