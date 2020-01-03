@@ -15,18 +15,23 @@ PLUGIN_VERSION_STR="-X github.com/greenplum-db/gpbackup-s3-plugin/s3plugin.Versi
 DEP=$(GOPATH)/bin/dep
 GOLANG_LINTER=$(GOPATH)/bin/golangci-lint
 GINKGO=$(GOPATH)/bin/ginkgo
+GOIMPORTS=$(GOPATH)/bin/goimports
+GO_ENV=GO111MODULE=on # ensure the project still compiles in $GOPATH/src using golang versions 1.12 and below
 
 LINTER_VERSION=1.16.0
 $(GOLANG_LINTER) :
 		curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(GOPATH)/bin v${LINTER_VERSION}
 
 depend :
-		go mod download
+		$(GO_ENV) go mod download
 
 $(GINKGO) :
-		go get github.com/onsi/ginkgo
+		$(GO_ENV) go install github.com/onsi/ginkgo/ginkgo
 
-format :
+$(GOIMPORTS) :
+		$(GO_ENV) go install golang.org/x/tools/cmd/goimports
+
+format : $(GOIMPORTS)
 		goimports -w .
 		gofmt -w -s .
 
@@ -34,18 +39,18 @@ lint : $(GOLANG_LINTER)
 		golangci-lint run --tests=false
 
 unit : depend $(GINKGO)
-		ginkgo -r -randomizeSuites -noisySkippings=false -randomizeAllSpecs s3plugin 2>&1
+		$(GO_ENV) ginkgo -r -randomizeSuites -noisySkippings=false -randomizeAllSpecs s3plugin 2>&1
 
 test : unit
 
 build : depend
-		go build -tags '$(S3_PLUGIN)' -o $(BIN_DIR)/$(S3_PLUGIN) -ldflags $(PLUGIN_VERSION_STR)
+		$(GO_ENV) go build -tags '$(S3_PLUGIN)' -o $(BIN_DIR)/$(S3_PLUGIN) -ldflags $(PLUGIN_VERSION_STR)
 
 build_linux : depend
-		env GOOS=linux GOARCH=amd64 go build -tags '$(S3_PLUGIN)' -o $(S3_PLUGIN) -ldflags $(PLUGIN_VERSION_STR)
+		env GOOS=linux GOARCH=amd64 $(GO_ENV) go build -tags '$(S3_PLUGIN)' -o $(S3_PLUGIN) -ldflags $(PLUGIN_VERSION_STR)
 
 build_mac : depend
-		env GOOS=darwin GOARCH=amd64 go build -tags '$(S3_PLUGIN)' -o $(BIN_DIR)/$(S3_PLUGIN) -ldflags $(PLUGIN_VERSION_STR)
+		env GOOS=darwin GOARCH=amd64 $(GO_ENV) go build -tags '$(S3_PLUGIN)' -o $(BIN_DIR)/$(S3_PLUGIN) -ldflags $(PLUGIN_VERSION_STR)
 
 install : build
 		@$(MAKE) install_plugin
